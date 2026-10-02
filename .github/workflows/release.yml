@@ -17,16 +17,18 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # Pinned instead of ubuntu-latest so a runner-image migration never changes
+    # how the ZIP is built; bump this deliberately.
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Full history so the tag's ancestry against main can be checked.
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           # `npm test` passes a quoted glob to `node --test`, which Node 20
           # cannot expand; Node 22 matches the runtime used locally.
