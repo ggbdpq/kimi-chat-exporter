@@ -1,0 +1,9 @@
+.DS_Store
+test/out/
+*.zip
+node_modules/
+.docs
+dist/
+CHROMEWEBSTORE.md
+.publish/
+.github/pages/privacy.md

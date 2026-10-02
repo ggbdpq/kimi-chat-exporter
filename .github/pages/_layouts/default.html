@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ page.title | default: site.title }}</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8f8f6;
+        --fg: #1b1b1a;
+        --muted: #5f5f5c;
+        --link: #0b57d0;
+        --rule: #dedcd6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16161a;
+          --fg: #ececea;
+          --muted: #a1a19d;
+          --link: #8ab4f8;
+          --rule: #33333a;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.75 "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+      }
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 3.5rem 1.5rem 6rem;
+      }
+      h1 {
+        font-size: 1.9rem;
+        line-height: 1.25;
+        margin: 0 0 1.5rem;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 1.2rem;
+        margin: 2.5rem 0 0.75rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--rule);
+      }
+      h3 {
+        font-size: 1rem;
+        margin: 1.75rem 0 0.5rem;
+      }
+      p,
+      li {
+        color: var(--fg);
+      }
+      a {
+        color: var(--link);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88em;
+        background: color-mix(in srgb, currentColor 12%, transparent);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+      }
+      blockquote {
+        margin: 1.5rem 0;
+        padding: 0.25rem 0 0.25rem 1rem;
+        border-left: 3px solid var(--rule);
+        color: var(--muted);
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--rule);
+        margin: 2.5rem 0;
+      }
+      footer {
+        margin-top: 3.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      {{ content }}
+      <footer>
+        <a href="https://github.com/micooz/kimi-chat-exporter">Kimi Chat Exporter</a> — unofficial
+        and not affiliated with Moonshot AI or Kimi.
+      </footer>
+    </main>
+  </body>
+</html>

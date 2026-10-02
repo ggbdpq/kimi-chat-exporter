@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Kimi Chat Exporter</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <span class="mark" aria-hidden="true">K</span>
+        <div class="topbar__text">
+          <h1 class="topbar__title" data-i18n="popup.title">Kimi Chat Exporter</h1>
+          <span class="version" id="app-version"></span>
+        </div>
+        <div class="topbar__tools">
+          <!-- The labels stay in their own language: 中文 and EN are readable
+               whoever is looking at them, so they are not translated. -->
+          <div
+            class="seg seg--lang"
+            id="seg-locale"
+            role="radiogroup"
+            data-i18n-attr="aria-label:popup.lang.label"
+          >
+            <button type="button" data-locale="zh-CN" role="radio" aria-checked="false">中文</button>
+            <button type="button" data-locale="en-US" role="radio" aria-checked="true">EN</button>
+          </div>
+          <a
+            class="iconlink"
+            href="https://github.com/micooz/kimi-chat-exporter"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+            title="GitHub"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"
+              />
+            </svg>
+          </a>
+        </div>
+      </header>
+
+      <p class="alert" id="error" role="alert" hidden></p>
+
+      <button class="jobs" id="jobs" type="button" hidden>
+        <span class="dot" id="jobs-dot" aria-hidden="true"></span>
+        <span class="jobs__text" id="jobs-text"></span>
+        <span class="jobs__go" id="jobs-go" data-i18n="popup.jobs.view">查看任务</span>
+      </button>
+
+      <section class="view" id="view-single">
+        <div class="hero">
+          <p class="hero__label" data-i18n="popup.hero.willExport">将导出</p>
+          <h2 class="hero__title" id="cur-title" data-i18n="popup.hero.currentChat">当前对话</h2>
+          <p class="hero__id mono" id="cur-id"></p>
+        </div>
+
+        <section class="sect" aria-labelledby="sect-content">
+          <h2 class="sect__title" id="sect-content" data-i18n="popup.section.content">导出内容</h2>
+          <div class="checks">
+            <label class="check">
+              <input type="checkbox" id="opt-thinking" /><span data-i18n="opt.thinking">思考过程</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" id="opt-tools" /><span data-i18n="opt.tools">工具调用</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" id="opt-citations" /><span data-i18n="opt.citations">引用与搜索</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" id="opt-media" /><span data-i18n="opt.media">图片与附件</span>
+            </label>
+          </div>
+          <div class="field">
+            <span class="field__label" id="lbl-branches" data-i18n="opt.branches">对话分支</span>
+            <div class="seg" role="radiogroup" aria-labelledby="lbl-branches" id="seg-branches">
+              <button type="button" data-v="all" role="radio" aria-checked="true" data-i18n="opt.branches.all">
+                含全部分支
+              </button>
+              <button type="button" data-v="latest" role="radio" aria-checked="false" data-i18n="opt.branches.latest">
+                仅主线
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field__label" id="lbl-package" data-i18n="opt.package">打包方式</span>
+            <div class="seg" role="radiogroup" aria-labelledby="lbl-package" id="seg-package">
+              <button type="button" data-v="single" role="radio" aria-checked="true" data-i18n="opt.package.single">
+                单个 ZIP
+              </button>
+              <button type="button" data-v="per-chat" role="radio" aria-checked="false" data-i18n="opt.package.perChat">
+                每对话一个
+              </button>
+            </div>
+          </div>
+          <p class="sect__note" data-i18n="popup.section.note">
+            正文与原始 JSON 始终完整保留；关掉图片与附件时只保留原始链接。
+          </p>
+        </section>
+      </section>
+
+      <section class="view" id="view-batch" hidden>
+        <div class="bar">
+          <button
+            class="iconbtn"
+            id="btn-back"
+            type="button"
+            data-i18n-attr="aria-label:popup.back"
+            aria-label="返回当前对话"
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+              <path
+                d="M9.8 3.2 5 8l4.8 4.8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <h2 class="bar__title" data-i18n="popup.batch.title">选择对话</h2>
+        </div>
+        <div class="search">
+          <input
+            type="search"
+            id="q"
+            placeholder="按标题筛选"
+            aria-label="按标题筛选对话"
+            data-i18n-attr="placeholder:popup.batch.filter,aria-label:popup.batch.filterLabel"
+          />
+        </div>
+        <div class="selectbar">
+          <span id="count" data-i18n="popup.batch.list">对话列表</span>
+          <div class="selectbar__actions">
+            <button class="minibtn" id="btn-refresh" type="button" data-i18n="common.refresh">刷新</button>
+            <button class="minibtn" id="btn-select-none" type="button" data-i18n="common.clear">清空</button>
+            <button class="minibtn" id="btn-select-all" type="button" data-i18n="common.selectAll">全选</button>
+          </div>
+        </div>
+        <ul class="chats" id="chats" aria-label="对话列表" data-i18n-attr="aria-label:popup.batch.list"></ul>
+        <p class="liststate" id="liststate" hidden></p>
+      </section>
+
+      <section class="offsite" id="offsite" hidden>
+        <h2 class="offsite__title" data-i18n="popup.offsite.title">在 Kimi 网页版使用</h2>
+        <p class="offsite__text" data-i18n="popup.offsite.text">
+          打开并登录 kimi.com，通过「右键菜单」或点击「扩展图标」导出对话。
+        </p>
+        <button class="btn btn--primary" id="btn-open-kimi" type="button" data-i18n="popup.offsite.open">
+          打开 kimi.com
+        </button>
+      </section>
+    </div>
+
+    <div class="dock">
+      <p class="dock__note" id="dock-note" role="status" hidden></p>
+      <div class="dock__row" id="dock-single">
+        <button class="btn btn--primary" id="btn-export-current" type="button" data-i18n="popup.exportCurrent">
+          导出当前对话
+        </button>
+        <button class="btn" id="btn-goto-all" type="button" data-i18n="popup.chooseOther">
+          选择其他对话
+        </button>
+      </div>
+      <div class="dock__row" id="dock-batch" hidden>
+        <button
+          class="btn btn--primary"
+          id="btn-export-selected"
+          type="button"
+          disabled
+          data-i18n="popup.exportSelected"
+        >
+          导出所选
+        </button>
+        <button class="btn" id="btn-export-all" type="button" data-i18n="popup.exportAll">导出全部</button>
+      </div>
+      <button class="dock__more" id="btn-tasks" type="button" data-i18n="popup.viewTasks">
+        查看导出任务
+      </button>
+    </div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

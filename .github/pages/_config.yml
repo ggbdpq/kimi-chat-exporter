@@ -1,0 +1,9 @@
+title: Kimi Chat Exporter
+markdown: kramdown
+
+# Every page (index.md and the generated privacy.md) uses the same layout.
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

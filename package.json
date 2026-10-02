@@ -1,0 +1,11 @@
+{
+  "name": "kimi-chat-exporter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kimi Chat Exporter: a Chrome MV3 extension that exports all Kimi Web chat history to a self-contained offline ZIP.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "pack": "sh scripts/pack.sh"
+  }
+}
