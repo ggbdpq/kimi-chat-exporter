@@ -15,6 +15,8 @@
 
 这是一个非官方的 Chrome 扩展：把 Kimi 网页版（`www.kimi.com`）的全部历史对话导出成一个自包含、可离线保存的 ZIP——Markdown 正文、原始 JSON、图片、附件与 PPT——所有处理都在本机完成；与 Kimi / 月之暗面无关，也未获其背书。
 
+![扩展弹窗：当前对话与导出选项](screenshot.png)
+
 ## 特性
 
 - **一个归档装下全部**：Markdown 正文、原始 JSON，以及图片、附件、PPT 等媒体。

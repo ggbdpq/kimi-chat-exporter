@@ -15,6 +15,8 @@ English · [中文](README.zh-CN.md)
 
 An unofficial Chrome extension that exports your entire Kimi Web (kimi.com) chat history into one self-contained, offline ZIP — Markdown, raw JSON, images, attachments and slides — with nothing ever leaving your machine; not affiliated with or endorsed by Kimi or Moonshot AI.
 
+![The extension popup, with the current chat and the export options](screenshot.png)
+
 ## Features
 
 - **One archive**: Markdown transcripts, the raw JSON, and all media (images, attachments and slides).
