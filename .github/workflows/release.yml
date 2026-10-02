@@ -1,0 +1,83 @@
+name: Release
+
+# Publishes the packed extension to GitHub Releases when a v<version> tag is
+# pushed. The version must already be committed to main in both manifest.json
+# and package.json; this workflow only verifies, tests and uploads.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          # Full history so the tag's ancestry against main can be checked.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # A release tag must sit on main, never on a stray branch.
+      - name: Require the tag to be on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME is not reachable from main"
+            exit 1
+          fi
+
+      # The tag is the source of truth: manifest.json and package.json must
+      # already carry the same version.
+      - name: Verify the version matches the tag
+        run: |
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+          manifest=$(node -p "require('./manifest.json').version")
+          pkg=$(node -p "require('./package.json').version")
+          if [ "$version" != "$manifest" ] || [ "$manifest" != "$pkg" ]; then
+            echo "::error::tag=$tag version=$version manifest=$manifest package=$pkg"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      # Zero dependencies, so npm install is unnecessary.
+      - name: Run the test suite
+        run: npm test
+
+      - name: Pack the extension
+        run: npm run pack
+
+      # Re-runs replace the asset in place instead of failing on an existing
+      # release; title and notes are left untouched.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip="dist/kimi-chat-exporter-v${VERSION}.zip"
+          ls -l "$zip"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
+          else
+            case "$GITHUB_REF_NAME" in
+              *-*) pre="--prerelease" ;;
+              *) pre="" ;;
+            esac
+            # shellcheck disable=SC2086 # $pre is intentionally word-split
+            gh release create "$GITHUB_REF_NAME" "$zip" \
+              --title "Kimi Chat Exporter $GITHUB_REF_NAME" \
+              --verify-tag \
+              --generate-notes $pre
+          fi
