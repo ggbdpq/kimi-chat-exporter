@@ -28,7 +28,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # `npm test` passes a quoted glob to `node --test`, which Node 20
+          # cannot expand; Node 22 matches the runtime used locally.
+          node-version: 22
 
       # A release tag must sit on main, never on a stray branch.
       - name: Require the tag to be on main
