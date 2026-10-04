@@ -315,7 +315,12 @@ function drawUnits(total, done) {
 }
 
 function paintProgress(p) {
-  if (!p || !$("units-count")) return;
+  if (!$("units-count")) return;
+  // The archive-size cell only carries a value from the archiving phase on, so
+  // it stays hidden while a job is downloading — and before it reports at all.
+  const volumeCell = $("stat-volume-cell");
+  if (volumeCell) volumeCell.hidden = !(p?.phase === "packing" || p?.phase === "ready");
+  if (!p) return;
   const packing = p.phase === "packing";
   // Listing has no total yet, so the rail stays indeterminate and the head
   // counts what has arrived instead of pretending to be a percentage.
@@ -411,6 +416,7 @@ async function render() {
     [t("tasks.ledger.size"), "stat-volume"],
   ]) {
     const cell = el("div");
+    cell.id = `${id}-cell`;
     const dd = el("dd", "—");
     dd.id = id;
     cell.append(el("dt", name), dd);

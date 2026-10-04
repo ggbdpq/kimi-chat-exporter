@@ -672,6 +672,11 @@
     flex-direction: column;
     gap: 1px;
   }
+  /* A hidden cell must really leave the rail: the rule above would otherwise
+     outrank the user-agent [hidden] display. */
+  .ledger > div[hidden] {
+    display: none;
+  }
   .ledger dt {
     color: var(--muted);
     font-size: var(--text-xs);
