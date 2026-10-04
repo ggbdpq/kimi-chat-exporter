@@ -27,7 +27,7 @@
 
 ## 安装
 
-> 本仓库不需要打包或转译，仓库本身就是扩展。可以克隆代码，也可以从 [最新 Release](https://github.com/micooz/kimi-chat-exporter/releases/latest) 下载 ZIP 包。
+> 本仓库不需要打包或转译，仓库本身就是扩展。
 
 1. 二选一获取文件：
    - **克隆仓库**：`git clone https://github.com/micooz/kimi-chat-exporter`。
