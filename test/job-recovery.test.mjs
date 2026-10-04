@@ -97,6 +97,118 @@ test("missing completed asset is requeued, while healthy assets are reused", asy
   assert.ok(result.state.startsWith("completed"), result.error);
   assert.equal(f.fetched.length, media + 1);
 });
+test("resuming continues the ledger instead of flashing back to zero", async () => {
+  const N = 6;
+  const targets = Array.from({ length: N }, (_, i) => ({
+    id: `ledger-${i}`,
+    name: `示例 ${i}`,
+    files: [],
+  }));
+  const setup = async () => {
+    const db = memoryDb(),
+      raw = memoryStore(),
+      api = makeApi();
+    const job = newJob({
+      chatIds: targets.map((c) => c.id),
+      chats: targets,
+      options: optionsWithDefaults(),
+    });
+    job.runId = "run1";
+    await db.createJob(job);
+    return {
+      db,
+      raw,
+      job,
+      deps: {
+        db,
+        raw,
+        job,
+        runId: job.runId,
+        api,
+        signal: new AbortController().signal,
+        canAccessHost: async () => true,
+      },
+    };
+  };
+  // Control: one uninterrupted run, for the finished byte total.
+  const control = await setup();
+  const full = await new JobEngine(control.deps).run();
+  assert.ok(full.state.startsWith("completed"), full.error);
+
+  const f = await setup();
+  const ac = new AbortController();
+  const original = f.db.putItem;
+  let published = 0;
+  f.db.putItem = async (...args) => {
+    const result = await original(...args);
+    if (args[2]?.kind === "chat" && args[2].state === "done" && ++published === 2) ac.abort();
+    return result;
+  };
+  const paused = await new JobEngine({ ...f.deps, signal: ac.signal }).run();
+  f.db.putItem = original;
+  assert.equal(paused.state, "paused");
+  assert.ok(paused.progress.chatsDone >= 2, "the pause must happen after real progress");
+  assert.ok(paused.progress.chatsDone < N, "the paused run must be unfinished");
+  assert.ok(paused.progress.bytes > 0);
+  assert.ok(paused.progress.rate > 0, "the paused run must report a transfer rate");
+
+  const job2 = await f.db.updateJob(f.job.id, { runId: "run2" });
+  const seen = [];
+  const resumed = await new JobEngine({
+    ...f.deps,
+    job: job2,
+    runId: "run2",
+    emit: (event) => {
+      if (event.type === "progress" && event.progress) seen.push({ ...event.progress });
+    },
+  }).run({ resume: true });
+  assert.ok(resumed.state.startsWith("completed"), resumed.error);
+  assert.ok(seen.length, "the resumed run must report progress");
+  assert.equal(seen[0].rate, paused.progress.rate, "the rate must continue, not reset");
+  // Re-walking the finished chats must not replay the counters.
+  for (const p of seen) {
+    assert.ok(p.chatsDone >= paused.progress.chatsDone, `chatsDone fell back to ${p.chatsDone}`);
+    assert.ok(p.bytes >= paused.progress.bytes, `bytes fell back to ${p.bytes}`);
+  }
+  assert.equal(resumed.progress.chatsDone, N, "every chat is counted exactly once");
+  assert.equal(resumed.progress.bytes, full.progress.bytes, "the ledger ends at the real total");
+});
+
+test("resuming probes only a few targets before the real work starts", async () => {
+  const db = memoryDb(),
+    raw = memoryStore(),
+    api = makeApi();
+  const targets = Array.from({ length: 12 }, (_, i) => ({
+    id: `probe-${i}`,
+    name: `示例 ${i}`,
+    files: [],
+  }));
+  const job = newJob({
+    chatIds: targets.map((c) => c.id),
+    chats: targets,
+    options: optionsWithDefaults({ downloadMedia: false }),
+  });
+  job.runId = "run1";
+  await db.createJob(job);
+  const result = await new JobEngine({
+    db,
+    raw,
+    job,
+    runId: job.runId,
+    api,
+    signal: new AbortController().signal,
+    canAccessHost: async () => true,
+  }).run({ resume: true });
+  assert.ok(result.state.startsWith("completed"), result.error);
+  const listCalls = api.calls.filter((c) => c.method.endsWith("ListMessages"));
+  // The resume pre-check reads one page (pageSize 1) of a few targets; probing
+  // every target turns "validating" into one throttled request per chat.
+  const probes = listCalls.filter((c) => c.body.pageSize === 1);
+  assert.ok(probes.length <= 3, `resuming probed ${probes.length} of ${targets.length} chats`);
+  // The export itself still walks every chat.
+  assert.equal(listCalls.filter((c) => c.body.pageSize === 200).length, targets.length);
+});
+
 test("abort after one page commit resumes only the remaining pages", async () => {
   const f = await fixture(),
     ac = new AbortController(),
