@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-04
+
 ### English
 
 **Added**
@@ -14,7 +16,7 @@
 - Pausing a job no longer records the abort reason as the job error, and a settled job drops any stale failure line (`9d6a8fb`).
 - Resuming no longer reads one page per chat up front: the pre-check samples a few targets, stops sitting on "Checking the sign-in and chat access…" (`74c49ac`).
 - Resuming continues the on-screen counters instead of flashing back to zero, and the sign-in retry keeps reporting the transferred bytes and rate (`74c49ac`).
-- Retrying a failed file (or all failures) now reprocesses only the chats that carry them; the remaining chats are reused from their record instead of being walked and validated again.
+- Retrying a failed file (or all failures) now reprocesses only the chats that carry them; the remaining chats are reused from their record instead of being walked and validated again (`4e18a12`).
 
 ### 中文
 
@@ -28,7 +30,7 @@
 - 暂停任务不再把 abort 原因记为任务错误，任务结束后也会清掉残留的失败提示（`9d6a8fb`）。
 - 续传不再逐个对话做预检：只读取少量目标的首页数据，不会再卡在「检查当前登录态和对话访问…」（`74c49ac`）。
 - 续传时进度、已传输、速率从暂停处继续，不再先归零；等待登录的重试提示也不会再清空这几项读数（`74c49ac`）。
-- 重试单个失败文件（或重试全部失败项）只重新处理包含它的对话，其余对话直接复用已发布结果，不再逐个走查与校验。
+- 重试单个失败文件（或重试全部失败项）只重新处理包含它的对话，其余对话直接复用已发布结果，不再逐个走查与校验（`4e18a12`）。
 
 ## 1.0.0 - 2026-10-02
 

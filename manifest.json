@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kimi Chat Exporter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Export your entire Kimi chat history to one offline ZIP: Markdown, raw JSON, thinking, tool calls, citations and all media.",
   "permissions": ["storage", "downloads", "scripting", "contextMenus"],
   "host_permissions": ["https://www.kimi.com/*", "https://*.kimi.com/*"],
