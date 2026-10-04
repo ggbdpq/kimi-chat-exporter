@@ -233,6 +233,150 @@ test("abort after one page commit resumes only the remaining pages", async () =>
   assert.equal(newCalls[0].body.pageSize, 1);
   assert.ok(newCalls[1].body.pageToken);
 });
+/** Two chats that both carry media, so a retry can be told to leave one alone. */
+async function twoChatFixture() {
+  const db = memoryDb(),
+    raw = memoryStore(),
+    api = makeApi();
+  const chats = ["c1", "c2"].map((id) =>
+    normalizeChat(LIST_CHATS_PAGES[0].chats.find((c) => c.id === id)),
+  );
+  const job = newJob({ chatIds: chats.map((c) => c.id), chats, options: optionsWithDefaults() });
+  job.runId = "run1";
+  await db.createJob(job);
+  const fetched = [];
+  const fetchBinary = async (url) => {
+    fetched.push(url);
+    const media = MEDIA[url];
+    return media
+      ? new Response(new Uint8Array(media.bytes), { headers: { "Content-Type": media.type } })
+      : new Response("", { status: 403 });
+  };
+  const deps = {
+    db,
+    raw,
+    job,
+    runId: job.runId,
+    api,
+    signal: new AbortController().signal,
+    canAccessHost: async () => true,
+    fetchBinary,
+  };
+  return { db, raw, api, job, fetched, fetchBinary, deps };
+}
+/**
+ * Record the records a run looks up *while it works* (packing reads every chat's
+ * files by design, so those are excluded). Pair the reads with the exact keys of
+ * a chat (see `chatKeys`) — hex digests can contain "c2", so a plain substring
+ * match would be flaky.
+ */
+function watchReads(db) {
+  const reads = [],
+    original = db.getItem.bind(db);
+  let packing = false;
+  db.getItem = async (jobId, key) => {
+    if (!packing) reads.push(key);
+    return original(jobId, key);
+  };
+  return {
+    reads,
+    onProgress: (event) => {
+      if (event.type === "progress" && event.progress?.phase === "packing") packing = true;
+    },
+    restore: () => (db.getItem = original),
+  };
+}
+/** Exact keys that only a walk of `chatId` would look up. */
+function chatKeys(chatId, entry) {
+  return new Set([
+    `chat:${chatId}`,
+    `pages:${chatId}`,
+    ...(entry?.files || []).map((f) => `file:${f.storePath}`),
+    ...(entry?.assetPaths || []).map((p) => `file:${p}`),
+  ]);
+}
+function belongsTo(key, chatId, keys) {
+  return (
+    keys.has(key) ||
+    key.startsWith(`page:${chatId}:`) ||
+    key.startsWith(`rpc:${chatId}:`) ||
+    key.startsWith(`asset:${chatId}:`)
+  );
+}
+/** A c1 asset, failed on the first run so the retry target is deterministic. */
+const C1_BROKEN = "https://cdn.example.com/img/table-full.png";
+async function twoChatRetry({ retry = null } = {}) {
+  const f = await twoChatFixture();
+  const deps = {
+    ...f.deps,
+    fetchBinary: async (url) =>
+      url === C1_BROKEN ? new Response("", { status: 404 }) : f.fetchBinary(url),
+  };
+  const first = await new JobEngine(deps).run();
+  assert.equal(first.state, "completed-with-errors");
+  const failed = (await f.db.listItems(f.job.id)).find((i) => i.kind === "asset" && i.state === "failed");
+  assert.equal(failed?.chatId, "c1", "the broken asset must belong to c1");
+  const baseline = f.fetched.length,
+    c2Keys = chatKeys("c2", (await f.db.getItem(f.job.id, "chat:c2")).entry),
+    watch = watchReads(f.db),
+    job = await f.db.updateJob(f.job.id, { runId: "run2" });
+  const second = await new JobEngine({
+    ...deps,
+    job,
+    runId: "run2",
+    fetchBinary: f.fetchBinary,
+    retry: retry || { key: failed.key },
+    emit: watch.onProgress,
+  }).run({ resume: true });
+  watch.restore();
+  return { ...f, failed, second, reads: watch.reads, baseline, c2Keys };
+}
+test("retrying one asset only reprocesses the chat that carries it", async () => {
+  const f = await twoChatRetry();
+  assert.equal(f.fetched.length, f.baseline + 1, "only the retried asset downloads again");
+  assert.equal(f.fetched.at(-1), C1_BROKEN);
+  assert.equal((await f.db.getItem(f.job.id, f.failed.key)).state, "done");
+  assert.equal(
+    f.reads.filter((key) => belongsTo(key, "c2", f.c2Keys)).length,
+    0,
+    "the untouched chat must not be re-validated",
+  );
+  assert.equal(f.second.state, "completed");
+  assert.equal(f.second.progress.chatsDone, 2, "both chats still count in the ledger");
+  assert.equal(f.second.totals.chats, 2);
+  const archive = readArchive(
+    Buffer.from(await (await f.raw.getBlob(f.second.artifacts[0].path)).arrayBuffer()),
+  );
+  assert.equal(archive.names.filter((n) => /\/markdown\/.+\.md$/.test(n)).length, 2);
+});
+test("retrying all failures still adopts the chats without failures", async () => {
+  const f = await twoChatRetry({ retry: { all: true } });
+  assert.equal(f.second.state, "completed");
+  assert.equal(f.second.progress.chatsDone, 2);
+  assert.equal(f.reads.filter((key) => belongsTo(key, "c2", f.c2Keys)).length, 0);
+});
+test("a retry target that matches nothing falls back to walking every chat", async () => {
+  const f = await twoChatFixture();
+  const first = await new JobEngine(f.deps).run();
+  assert.ok(first.state.startsWith("completed"), first.error);
+  const c2Keys = chatKeys("c2", (await f.db.getItem(f.job.id, "chat:c2")).entry),
+    watch = watchReads(f.db),
+    job = await f.db.updateJob(f.job.id, { runId: "run2" });
+  const second = await new JobEngine({
+    ...f.deps,
+    job,
+    runId: "run2",
+    retry: { key: "asset:gone:nothing" },
+    emit: watch.onProgress,
+  }).run({ resume: true });
+  watch.restore();
+  assert.ok(second.state.startsWith("completed"), second.error);
+  assert.ok(
+    watch.reads.some((key) => belongsTo(key, "c2", c2Keys)),
+    "the full walk re-validates c2",
+  );
+  assert.equal(second.progress.chatsDone, 2);
+});
 test("single failed asset can be retried without downloading healthy assets", async () => {
   const f = await fixture(),
     original = f.deps.fetchBinary;
