@@ -2,7 +2,9 @@ name: Release
 
 # Publishes the packed extension to GitHub Releases when a v<version> tag is
 # pushed. The version must already be committed to main in both manifest.json
-# and package.json; this workflow only verifies, tests and uploads.
+# and package.json; this workflow only verifies, tests and uploads. The release
+# body is the tag's section of CHANGELOG.md, so the changelog entry has to be
+# committed before the tag is pushed.
 
 on:
   push:
@@ -64,15 +66,23 @@ jobs:
       - name: Pack the extension
         run: npm run pack
 
-      # Re-runs replace the asset in place instead of failing on an existing
-      # release; title and notes are left untouched.
+      # CHANGELOG.md is the source of truth for the release body. A tag with no
+      # matching section only warns and falls back to commit-derived English
+      # notes, so a forgotten entry never blocks the upload.
+      - name: Build the release notes
+        run: node scripts/changelog.mjs --tag "$GITHUB_REF_NAME" --out dist/release-notes.md
+
+      # Re-runs replace the asset in place and refresh the body, so the release
+      # page always matches CHANGELOG.md at that tag.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           zip="dist/kimi-chat-exporter-v${VERSION}.zip"
-          ls -l "$zip"
+          notes="dist/release-notes.md"
+          ls -l "$zip" "$notes"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$notes"
             gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
           else
             case "$GITHUB_REF_NAME" in
@@ -83,5 +93,5 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "$zip" \
               --title "Kimi Chat Exporter $GITHUB_REF_NAME" \
               --verify-tag \
-              --generate-notes $pre
+              --notes-file "$notes" $pre
           fi

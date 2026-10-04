@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents working in this repository. It reflects the current code; keep it in sync when behavior changes. The human-facing docs are `README.md` (English) and `README.zh-CN.md` (Chinese), and `README.md` also carries the deep module/architecture reference; this file is deliberately agent-focused, a quick reference, and English-only.
+Guidance for coding agents working in this repository. It reflects the current code; keep it in sync when behavior changes. The human-facing docs are `README.md` (English), `README.zh-CN.md` (Chinese) and `CHANGELOG.md` (per-version, bilingual), and `README.md` also carries the deep module/architecture reference; this file is deliberately agent-focused, a quick reference, and English-only.
 
 ## Project Overview
 
@@ -97,8 +97,8 @@ node --test --test-name-pattern "branch" test/*.test.mjs  # filter by test name
 ## Build and Deployment
 
 - `npm run pack` (`scripts/pack.sh`) builds the store upload ZIP from runtime files only: `manifest.json`, `popup.*`, `tasks.*`, `lib/`, `icons/`, and prints the archive listing. The version comes from `manifest.json`.
-- Before releasing, bump the version in both `manifest.json` and `package.json`, and confirm all four icon sizes are present (`icons/icon-{16,32,48,128}.png`).
-- There is no CI configuration (no `.github/`). At minimum run `npm test` before committing; changes touching the Worker / OPFS / IndexedDB should also run the `test/browser/` manual tests.
+- To cut a release, follow `.agents/skills/release/SKILL.md`; it owns the version bump in `manifest.json` + `package.json`, the bilingual `CHANGELOG.md` section (the single source of truth for the GitHub Release body, extracted by `scripts/changelog.mjs`), the tag push and the store copy. Confirm all four icon sizes are present (`icons/icon-{16,32,48,128}.png`) before tagging.
+- CI is `.github/workflows/release.yml` (tag push: version check → `npm test` → pack → release) and `pages.yml` (publishes `PRIVACY.md`). At minimum run `npm test` before committing; changes touching the Worker / OPFS / IndexedDB should also run the `test/browser/` manual tests.
 
 ## Security Considerations
 
