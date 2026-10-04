@@ -16,9 +16,9 @@ Kimi Chat Exporter is a Chrome Manifest V3 extension that exports a user's entir
 
 One export spans three processes: **service worker (short tasks) → task page (owns the work) → Web Worker (does the work)**.
 
-- `lib/background.js`: MV3 service worker. Short requests only — read the session, list chats, create jobs, open the task page, register the context menu. **It never exports.**
+- `lib/background.js`: MV3 service worker. Short requests only — read the session, list chats, create jobs, open the task page, register the context menu, and start an export parked by the popup once its media permission is granted. **It never exports.**
 - `lib/content.js`: content script on `www.kimi.com`. Reads `access_token` / `refresh_token` from `localStorage` on demand and returns them in memory only; never persisted.
-- `popup.js`: popup UI. Reads options, lists chats, lets the user pick a scope, creates a job via the `startJob` message, and opens the task page. Shows a read-only status bar from `job-db.js`.
+- `popup.js`: popup UI. Reads options, lists chats, lets the user pick a scope, creates a job via the `startJob` message, and opens the task page. When media permission is still missing it parks the intent (`parkExport`) before asking, so the grant can finish the hand-off. Shows a read-only status bar from `job-db.js`.
 - `tasks.js`: the task page and **owner of the export**. Takes `EXECUTOR_LOCK`, spawns `new Worker("lib/job-worker.js", { type: "module" })`, drives `JobEngine`, and downloads artifacts via `chrome.downloads`.
 - `lib/job-worker.js`: runs inside the Worker. Opens IndexedDB, builds `KimiApi` and `JobEngine`, and bridges "read a token" / "check host permission" requests back to the task page over a `postMessage` `bridge` protocol.
 
@@ -35,7 +35,7 @@ Grouped by concern — open each file header for its exact surface.
 
 ### Export data flow
 
-1. The popup creates a job (`job-db.newJob`, with options and target chats) and opens `tasks.html#jobId=...&start=1`.
+1. The popup creates a job (`job-db.newJob`, with options and target chats) and opens `tasks.html#jobId=...&start=1`; if the media permission is still missing it parks the same intent in the worker first, so the export starts on the grant even when Chrome closed the popup.
 2. The task page takes the lock, starts the Worker and runs `JobEngine.run()`.
 3. Per chat: page through messages (→ `.pages/`) → lazily enrich (→ `.rpc/`) → normalize into render structures → download media concurrently (→ `assets/`) → write `markdown/` and `raw/`.
 4. Build the reports (`report.md`, `error.log`) → pack into a single ZIP, multiple volumes, or one ZIP per chat.
@@ -104,7 +104,7 @@ node --test --test-name-pattern "branch" test/*.test.mjs  # filter by test name
 
 - **Credentials never touch disk**: the login token only lives in memory. `job-db.js` states at the top that no credentials may appear in the database. Do not persist, log or transmit tokens.
 - **The chat list may be cached, credentials may not**: `chatListCache` holds only `ListChats` entries (including `raw`, needed for the target export's `raw/<chat-id>.json`) plus a SHA-256 fingerprint of the token's `sub`. Never write a token into it. An account switch must rebuild the whole table.
-- **Permission boundary**: `chrome.permissions.request` only works in the popup (user gesture), not in the service worker; the Worker can only call `chrome.permissions.contains`. When the user declines, the export continues, media keeps its original link, and a WARN line is written to `error.log`.
+- **Permission boundary**: `chrome.permissions.request` only works in the popup (user gesture), not in the service worker; the Worker can only call `chrome.permissions.contains`. Chrome can close the popup while that dialog is up, so the popup parks the export intent in `chrome.storage.session` and the worker starts it from `chrome.permissions.onAdded` (`startExport` is idempotent per pending id, so only one job is created). The task page's own grant button continues the shown job instead. When the user declines, the export continues, media keeps its original link, and a WARN line is written to `error.log`.
 
 ## Key Conventions and Gotchas
 

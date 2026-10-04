@@ -28,6 +28,16 @@ const PHASE_KEYS = {
   packing: "tasks.phase.packing",
   ready: "tasks.phase.ready",
 };
+// Job states whose primary action is start/resume: granting the media-host
+// permission can continue them directly. Finished and failed jobs keep their
+// retry button, and a running one already picks the new grant up.
+const CONTINUE_AFTER_GRANT = new Set([
+  "queued",
+  "paused",
+  "interrupted",
+  "waiting-login",
+  "blocked-storage",
+]);
 // Labels are resolved per paint so a language switch needs no rebuild.
 function phaseLabel(phase) {
   return PHASE_KEYS[phase] ? t(PHASE_KEYS[phase]) : "";
@@ -443,9 +453,18 @@ async function render() {
         authBtn.disabled = true;
         try {
           error("");
+          // Granting here continues *this* job, so a popup export still parked
+          // from an earlier attempt must not start a second one.
+          await send("dropExport").catch(() => {});
           const ok = await chrome.permissions.request({ origins: ["<all_urls>"] });
-          if (ok) await render();
-          else throw new Error(t("tasks.notice.grantDenied"));
+          if (!ok) throw new Error(t("tasks.notice.grantDenied"));
+          // The grant was the only missing step, so continue this job instead
+          // of asking for the same click again: a queued job starts straight
+          // away, a paused or interrupted one keeps its resume confirmation.
+          const fresh = await db.getJob(job.id);
+          if (fresh && !active && CONTINUE_AFTER_GRANT.has(fresh.state))
+            await acquireRun(fresh.id, null, true);
+          else await render();
         } catch (e) {
           error(e);
         } finally {

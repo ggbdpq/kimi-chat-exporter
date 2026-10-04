@@ -368,9 +368,7 @@ async function exportChats(ids, { allChats = false } = {}) {
   setBusy(true, t("popup.openingTasks"));
   setError("");
   try {
-    if (options.downloadMedia) await ensureMediaPermission();
-    await send({
-      type: "startJob",
+    const intent = {
       chatIds: ids,
       chats: allChats ? [] : await resolveTargets(ids),
       allChats,
@@ -379,7 +377,15 @@ async function exportChats(ids, { allChats = false } = {}) {
       // Snapshotted on the job so the archive keeps one language even if the
       // switch is flipped while it runs.
       locale: getLocale(),
-    });
+    };
+    // Media needs the optional host permission, and Chrome can close this popup
+    // while it shows that dialog: the intent is parked in the worker first, so a
+    // grant starts the export from either side — exactly once.
+    const pendingId = crypto.randomUUID();
+    const media = options.downloadMedia ? await ensureMediaPermission(pendingId, intent) : "unneeded";
+    await send(
+      media === "granted" ? { type: "startExport", pendingId } : { type: "startJob", ...intent },
+    );
     window.close();
   } catch (err) {
     setError(String(err.message || err));
@@ -390,25 +396,30 @@ async function exportChats(ids, { allChats = false } = {}) {
 
 // Media lives on signed CDN/OSS URLs whose hosts cannot be enumerated, and
 // chrome.permissions.request must be called from the popup (a user-gesture
-// context) — it never works from the service worker. Ask once, up front; a
-// refusal degrades gracefully: assets keep their remote URL and land in
-// error.log instead of aborting the export. The job itself only
-// checks grants with chrome.permissions.contains.
-async function ensureMediaPermission() {
-  if (await chrome.permissions.contains({ origins: ["<all_urls>"] })) return true;
+// context) — it never works from the service worker. Returns "already" when the
+// grant is in place, "granted" when the user just approved it, "denied"
+// otherwise; a refusal degrades gracefully: assets keep their remote URL and
+// land in error.log instead of aborting the export. The job itself only checks
+// grants with chrome.permissions.contains.
+async function ensureMediaPermission(pendingId, intent) {
+  if (await chrome.permissions.contains({ origins: ["<all_urls>"] })) return "already";
   const note = t("popup.perm.note");
   if (!confirm(note)) {
     setError(t("popup.perm.denied"));
-    return false;
+    return "denied";
   }
+  await send({ type: "parkExport", pendingId, intent });
   let granted = false;
   try {
     granted = await chrome.permissions.request({ origins: ["<all_urls>"] });
   } catch {
     granted = false;
   }
-  if (!granted) setError(t("popup.perm.deniedExpiring"));
-  return granted;
+  if (granted) return "granted";
+  // The user said no: forget the parked intent and start without media.
+  await send({ type: "dropExport", pendingId }).catch(() => {});
+  setError(t("popup.perm.deniedExpiring"));
+  return "denied";
 }
 
 // The task page owns the work, but the popup is where people land, so surface
