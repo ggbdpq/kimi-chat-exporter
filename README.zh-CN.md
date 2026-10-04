@@ -27,11 +27,13 @@
 
 ## 安装
 
-> 本仓库不需要打包或转译，直接作为「已解压的扩展程序」加载即可。
+> 本仓库不需要打包或转译，仓库本身就是扩展。可以克隆代码，也可以从 [最新 Release](https://github.com/micooz/kimi-chat-exporter/releases/latest) 下载 ZIP 包。
 
-1. 克隆或下载本仓库代码：`git clone https://github.com/micooz/kimi-chat-exporter`。
+1. 二选一获取文件：
+   - **克隆仓库**：`git clone https://github.com/micooz/kimi-chat-exporter`。
+   - **下载 ZIP**：在 [最新 Release](https://github.com/micooz/kimi-chat-exporter/releases/latest) 页下载 `kimi-chat-exporter-v<版本号>.zip` 并解压。
 2. 打开 `chrome://extensions`，开启右上角「开发者模式」。
-3. 点「加载已解压的扩展程序」，选择本仓库根目录。
+3. 点「加载已解压的扩展程序」，选择本仓库根目录（克隆）或解压出来的文件夹。
 4. 打开并登录 [kimi.com](https://www.kimi.com/)。
 5. 点击工具栏上的扩展图标开始导出。
 

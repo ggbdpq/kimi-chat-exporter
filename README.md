@@ -27,11 +27,13 @@ An unofficial Chrome extension that exports your entire Kimi Web (kimi.com) chat
 
 ## Install
 
-> Nothing to compile or bundle — load the repository directly as an unpacked extension.
+> Nothing to compile or bundle — the repository *is* the extension. Clone it, or download the ZIP from the [latest release](https://github.com/micooz/kimi-chat-exporter/releases/latest).
 
-1. Clone or download this repository: `git clone https://github.com/micooz/kimi-chat-exporter`
+1. Get the files, whichever way you prefer:
+   - **Clone** the repository: `git clone https://github.com/micooz/kimi-chat-exporter`
+   - **Download** `kimi-chat-exporter-v<version>.zip` from the [latest release](https://github.com/micooz/kimi-chat-exporter/releases/latest) and unzip it.
 2. Open `chrome://extensions` and turn on **Developer mode**.
-3. Click **Load unpacked** and select the repository root.
+3. Click **Load unpacked** and select the repository root (clone) or the unzipped folder.
 4. Open and sign in to [kimi.com](https://www.kimi.com/).
 5. Click the extension icon in the toolbar to start.
 
