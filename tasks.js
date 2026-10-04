@@ -644,7 +644,9 @@ async function acquireRun(jobId, retry = null, auto = false) {
             channel.postMessage(data);
           }
           if (data.type === "settled") {
-            if (data.error) error(data.error);
+            // A run that ends without an error (including a pause) must not leave
+            // an older failure line on screen.
+            error(data.error || "");
             resolveDone();
           }
         };

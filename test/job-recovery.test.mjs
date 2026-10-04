@@ -108,6 +108,9 @@ test("abort after one page commit resumes only the remaining pages", async () =>
   };
   const paused = await new JobEngine({ ...f.deps, signal: ac.signal }).run();
   assert.equal(paused.state, "paused");
+  // Pausing is not a failure: the abort reason must not become the job's error,
+  // or the task page shows a red alert for a deliberate stop.
+  assert.equal(paused.error, null, `paused jobs must stay error-free, got "${paused.error}"`);
   f.db.putItem = original;
   const calls = f.api.calls.length,
     job = await f.db.updateJob(f.job.id, { runId: "run2" });
