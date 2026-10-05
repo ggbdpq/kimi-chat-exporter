@@ -27,7 +27,17 @@
 
 ## 安装
 
-> 本仓库不需要打包或转译，仓库本身就是扩展。
+### 从 Chrome 应用商店安装
+
+> 推荐方式：商店会自动跟进后续版本更新。
+
+1. 打开[商店详情页](https://chromewebstore.google.com/detail/kimi-chat-exporter/flkclcmjhecjbjadhmkhnpifonmmpdhb)，点击「添加至 Chrome」，再确认「添加扩展程序」。
+2. 固定图标：点 Chrome 工具栏的拼图按钮，在 *Kimi Chat Exporter* 右侧点图钉。
+3. 打开并登录 [kimi.com](https://www.kimi.com/)，点击扩展图标即可开始。
+
+### 从仓库安装
+
+> 想用最新构建（可能比商店版本更新）时走这条路。本仓库不需要打包或转译，仓库本身就是扩展。
 
 1. 二选一获取文件：
    - **克隆仓库**：`git clone https://github.com/micooz/kimi-chat-exporter`。
