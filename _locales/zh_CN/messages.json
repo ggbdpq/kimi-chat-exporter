@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "Kimi Chat Exporter",
+    "description": "The name of the extension, shown in Chrome's extension manager and the Chrome Web Store."
+  },
+  "extensionDescription": {
+    "message": "把 Kimi 网页版的全部历史对话导出成一个可离线打开的 ZIP：原文、原始 JSON、思考过程、工具调用、搜索引用、图片附件与 AI PPT。",
+    "description": "The summary of the extension, at most 132 characters."
+  },
+  "actionTitle": {
+    "message": "导出 Kimi 对话",
+    "description": "Tooltip for the toolbar button."
+  }
+}

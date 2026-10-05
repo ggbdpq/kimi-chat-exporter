@@ -546,3 +546,59 @@ test("a page follows local changes and ignores another storage area", async () =
     setLocale(DEFAULT_LOCALE);
   }
 });
+
+// Chrome's own i18n layer: the manifest strings and the store listing come from
+// `_locales/<locale>/messages.json`, which is a separate catalog from the UI
+// catalogs above. A missing default_locale, a placeholder with no message, or a
+// locale that only exists in one directory all break the packaged extension.
+const MSG_PATTERN = /^__MSG_(\w+)__$/;
+/** Chrome and the store both cap the manifest description at 132 characters. */
+const MAX_DESCRIPTION = 132;
+
+async function readMessages(locale) {
+  const path = new URL(`../_locales/${locale}/messages.json`, import.meta.url);
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
+test("the manifest is localized through _locales", async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL("../manifest.json", import.meta.url), "utf8"),
+  );
+  assert.ok(manifest.default_locale, "default_locale is required once _locales exists");
+  const localized = {
+    name: manifest.name,
+    description: manifest.description,
+    "action.default_title": manifest.action.default_title,
+  };
+  const en = await readMessages(manifest.default_locale);
+  for (const [field, value] of Object.entries(localized)) {
+    const key = MSG_PATTERN.exec(value)?.[1];
+    assert.ok(key, `${field} must be a __MSG_key__ placeholder, got ${JSON.stringify(value)}`);
+    assert.ok(en[key]?.message, `${field} points at ${key}, which _locales has no message for`);
+  }
+  assert.equal(
+    en.extensionDescription.message.length <= MAX_DESCRIPTION,
+    true,
+    `description is ${en.extensionDescription.message.length} characters`,
+  );
+});
+
+test("every _locales directory defines the same messages", async () => {
+  const root = fileURLToPath(new URL("../_locales/", import.meta.url));
+  const dirs = (await readdir(root, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+  assert.ok(dirs.length >= 2, "expected the UI's two languages to be localized too");
+  const catalogs = new Map();
+  for (const dir of dirs) catalogs.set(dir, await readMessages(dir));
+  const [first, ...rest] = [...catalogs.entries()];
+  for (const [dir, messages] of rest) {
+    assert.deepEqual(
+      Object.keys(messages).sort(),
+      Object.keys(first[1]).sort(),
+      `_locales/${dir} must match _locales/${first[0]}`,
+    );
+    for (const key of Object.keys(messages))
+      assert.ok(messages[key].message, `${dir}.${key} has no message`);
+  }
+});

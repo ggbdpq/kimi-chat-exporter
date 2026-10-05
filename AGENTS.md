@@ -8,9 +8,9 @@ Kimi Chat Exporter is a Chrome Manifest V3 extension that exports a user's entir
 
 - **No build step**: the repository *is* the extension. `manifest.json` points at `lib/background.js` and `lib/content.js`; `popup.html` / `tasks.html` load `popup.js` / `tasks.js`. Chrome runs the native ES modules directly. Do not add a bundler or transpiler.
 - **Zero dependencies**: `package.json` has only `test` and `pack` scripts — no `dependencies` / `devDependencies`. Tests use Node built-ins only (`node:test`, `node:zlib`).
-- **Manifest**: MV3, `minimum_chrome_version` `127`; service worker is `lib/background.js` (`"type": "module"`); the content script is injected only into `https://www.kimi.com/*`. There is no `_locales` directory — the manifest strings are English literals and Chrome's native i18n is unused.
+- **Manifest**: MV3, `minimum_chrome_version` `127`; service worker is `lib/background.js` (`"type": "module"`); the content script is injected only into `https://www.kimi.com/*`. The user-visible manifest strings (`name`, `description`, `action.default_title`) are `__MSG_*__` placeholders resolved by Chrome's own i18n from `_locales/<locale>/messages.json`, with `"default_locale": "en"`.
 - **Permissions**: `storage`, `downloads`, `scripting`, `contextMenus`; host permissions `https://www.kimi.com/*` and `https://*.kimi.com/*`; optional host permission `<all_urls>` (used to download media only after the user grants it).
-- **Languages**: the UI and the exported reports ship in English and Simplified Chinese; user-facing copy lives in `lib/locales/*` and is resolved through `lib/i18n.js` (see Key Conventions).
+- **Languages**: the UI and the exported reports ship in English and Simplified Chinese; user-facing copy lives in `lib/locales/*` and is resolved through `lib/i18n.js` (see Key Conventions). That project-owned catalog is separate from Chrome's `_locales/`, which only carries the three manifest strings — and is also what lets the store offer a localized listing per language.
 
 ## Architecture
 
@@ -96,7 +96,7 @@ node --test --test-name-pattern "branch" test/*.test.mjs  # filter by test name
 
 ## Build and Deployment
 
-- `npm run pack` (`scripts/pack.sh`) builds the store upload ZIP from runtime files only: `manifest.json`, `popup.*`, `tasks.*`, `lib/`, `icons/`, and prints the archive listing. The version comes from `manifest.json`.
+- `npm run pack` (`scripts/pack.sh`) builds the store upload ZIP from runtime files only: `manifest.json`, `_locales/`, `popup.*`, `tasks.*`, `lib/`, `icons/`, and prints the archive listing. The version comes from `manifest.json`. Keep `_locales/` in that list — a package without it fails to load once the manifest carries `__MSG_*__` placeholders.
 - To cut a release, follow `.agents/skills/release/SKILL.md`; it owns the version bump in `manifest.json` + `package.json`, the bilingual `CHANGELOG.md` section (the single source of truth for the GitHub Release body, extracted by `scripts/changelog.mjs`), the tag push and the store copy. Confirm all four icon sizes are present (`icons/icon-{16,32,48,128}.png`) before tagging.
 - CI is `.github/workflows/release.yml` (tag push: version check → `npm test` → pack → release) and `pages.yml` (publishes `PRIVACY.md`). At minimum run `npm test` before committing; changes touching the Worker / OPFS / IndexedDB should also run the `test/browser/` manual tests.
 
@@ -119,6 +119,8 @@ node --test --test-name-pattern "branch" test/*.test.mjs  # filter by test name
 - **Language is snapshotted per job**: each chrome context resolves `locale` from `chrome.storage.local` (falling back to `chrome.i18n.getUILanguage()` / `navigator.language`, then `DEFAULT_LOCALE`); the 中/EN switch in the popup or task-page header is the only writer. `newJob({ locale })` stores it and `JobEngine.run()` calls `setLocale(job.locale)` before rendering, so a resumed or retried job keeps its original language.
 - **What is deliberately not translated**: role headings, YAML frontmatter keys, `raw/<chat-id>.json`, the `error.log` level and category identifiers, and the `x-language` header the API client sends to Kimi.
 - **Tests pin their language**: `test/locale.mjs` sets `zh-CN` for the suite files whose assertions quote Chinese copy; `test/i18n.test.mjs` owns catalog parity, key usage and plural handling.
+- **Two i18n layers, do not merge them**: `_locales/` is Chrome's native catalog and holds only the manifest strings plus what the store listing reads; `lib/locales/` is the project's own runtime catalog for the UI, reports and logs. A string belongs in `_locales/` only if the manifest needs it — everything else goes through `t()` / `tn()`.
+- **`extensionName` stays English in both locales**: it is the brand, and Chrome and the store must show the same title as the popup header (`popup.title` in both catalogs). `test/i18n.test.mjs` checks that every `__MSG_*__` placeholder in the manifest resolves in `default_locale`, that each locale directory defines the same keys, and that the description stays within the store's 132-character cap.
 
 ## Pull Request Guidelines
 

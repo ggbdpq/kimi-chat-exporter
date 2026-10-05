@@ -7,7 +7,7 @@ version=$(node -p "JSON.parse(require('node:fs').readFileSync('manifest.json','u
 out="dist/kimi-chat-exporter-v${version}.zip"
 mkdir -p dist
 rm -f "$out"
-zip -q -r "$out" manifest.json popup.html popup.css popup.js tasks.html tasks.css tasks.js lib icons \
+zip -q -r "$out" manifest.json _locales popup.html popup.css popup.js tasks.html tasks.css tasks.js lib icons \
   -x "*.DS_Store" -x "*/.*"
 echo "packed $out ($(du -h "$out" | cut -f1))"
 unzip -l "$out" | tail -n +4 | head -n 20

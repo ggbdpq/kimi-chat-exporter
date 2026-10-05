@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "Kimi Chat Exporter",
+    "description": "The name of the extension, shown in Chrome's extension manager and the Chrome Web Store."
+  },
+  "extensionDescription": {
+    "message": "Export your entire Kimi chat history to one offline ZIP: Markdown, raw JSON, thinking, tool calls, citations and all media.",
+    "description": "The summary of the extension, at most 132 characters."
+  },
+  "actionTitle": {
+    "message": "Export Kimi chat history",
+    "description": "Tooltip for the toolbar button."
+  }
+}
